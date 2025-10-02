@@ -1,0 +1,40 @@
+version: '3.8'   # Docker Compose file format version
+
+services:        # Define the different services (containers) we want to run
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest   # Zookeeper image from Confluent
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181    # The port Zookeeper listens to for clients
+      ZOOKEEPER_TICK_TIME: 2000      # Basic time unit (in ms) for Zookeeper internal operations
+    ports:
+      - "2181:2181"   # Map container's port 2181 -> host's port 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:latest   # Kafka broker image from Confluent
+    depends_on:
+      - zookeeper    # Kafka must start after Zookeeper is up
+    ports:
+      - "9092:9092"  # Map container's port 9092 -> host's port 9092
+    environment:
+      KAFKA_BROKER_ID: 1      # Unique ID for this Kafka broker (important if you run multiple brokers)
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181   # Kafka connects to Zookeeper at service-name:port
+      # Kafka needs to know how it will be accessed both internally (by other containers)
+      # and externally (by your host machine). So we define multiple listeners:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+      # - PLAINTEXT://kafka:9092 → accessible inside Docker network (services call "kafka:9092")
+      # - PLAINTEXT_HOST://localhost:9092 → accessible from your machine at localhost:9092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      # Define protocols for the above listeners. Here, both are using PLAINTEXT (no SSL/auth).
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Which listener Kafka brokers use to talk to each other (internal communication).
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Kafka stores consumer offsets in a special topic.
+      # Replication factor = 1 because we only have one broker (no replication).
+
+  redis:
+    image: redis:latest   # Official Redis image
+    ports:
+      - "6379:6379"   # Map container's port 6379 -> host's port 6379
