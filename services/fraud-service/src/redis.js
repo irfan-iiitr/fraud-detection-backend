@@ -5,18 +5,22 @@ const client = redis.createClient({
 });
 
 async function connectRedis() {
-    client.on('error', (err) => console.error('Redis Error:', err));
+    client.on('error', (err) => console.error('❌ Redis Error:', err));
     await client.connect();
-    console.log("Fraud Service connected to Redis");
+    console.log("✅ Fraud Service connected to Redis");
 }
 
-async function setUserHistory(userId, data) {
-    await client.set(userId, JSON.stringify(data));
+async function pushTransaction(userId, transaction) {
+    // Store transaction in a Redis LIST
+    await client.lPush(`transactions:${userId}`, JSON.stringify(transaction));
+
+    // Optional: limit history to last 10 transactions
+    await client.lTrim(`transactions:${userId}`, 0, 9);
 }
 
-async function getUserHistory(userId) {
-    const data = await client.get(userId);
-    return data ? JSON.parse(data) : null;
+async function getTransactions(userId) {
+    const data = await client.lRange(`transactions:${userId}`, 0, 9);
+    return data.map(item => JSON.parse(item));
 }
 
-module.exports = { connectRedis, setUserHistory, getUserHistory };
+module.exports = { connectRedis, pushTransaction, getTransactions };
